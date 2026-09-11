@@ -1,20 +1,29 @@
 // Vercel Serverless Function
 module.exports = async (req, res) => {
     const phone = req.query.num || req.query.phone;
+    let limit = parseInt(req.query.limit) || 10; // 👈 ডিফল্ট ১০
 
     if (!phone) {
-        return res.status(400).json({ error: 'num parameter missing. Example: /api?num=01712345678' });
+        return res.status(400).json({ 
+            error: 'num parameter missing. Example: /api?num=01712345678&limit=10' 
+        });
     }
 
     if (!/^01[3-9]\d{8}$/.test(phone)) {
-        return res.status(400).json({ error: 'Invalid Bangladesh number. Use 01XXXXXXXXX format.' });
+        return res.status(400).json({ 
+            error: 'Invalid Bangladesh number. Use 01XXXXXXXXX format.' 
+        });
     }
+
+    // 🔒 লিমিট কন্ট্রোল (সর্বনিম্ন ১, সর্বোচ্চ ৫০)
+    if (isNaN(limit) || limit < 1) limit = 1;
+    if (limit > 50) limit = 50;
 
     try {
         const allApis = require('./apis.json').apis;
 
-        // ⏱️ শুধু প্রথম ৫০টি API চালান (৬০ সেকেন্ড টাইমআউট এড়াতে)
-        const apis = allApis.slice(0, 50);
+        // ⏱️ ইউজারের দেওয়া limit অনুযায়ী API চালান
+        const apis = allApis.slice(0, limit);   // 👈 এখানে limit বসানো
 
         const p10 = phone.substring(1);
         const p13 = '88' + phone;
@@ -75,6 +84,7 @@ module.exports = async (req, res) => {
 
         res.status(200).json({
             phone: phone,
+            limit: limit,              // 👈 কতগুলো পাঠানো হয়েছে দেখাবে
             total: results.length,
             success: successCount,
             failed: results.length - successCount,
